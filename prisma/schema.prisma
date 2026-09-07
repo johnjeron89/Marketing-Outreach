@@ -1,0 +1,466 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PipelineStatus {
+  DRAFT
+  READY_TO_SEND
+  SENT
+  REPLIED
+  INTERESTED
+  MEETING_BOOKED
+  PASSED
+  NO_RESPONSE
+  FOLLOW_UP_DUE
+  DO_NOT_CONTACT
+}
+
+enum CampaignMode {
+  DRAFT_ONLY
+  REVIEW_BEFORE_SEND
+  AUTOMATED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum EmailDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum EmailStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  BOUNCED
+  CANCELLED
+}
+
+enum ReplyClassification {
+  INTERESTED
+  WANTS_DECK
+  WANTS_MEETING
+  PASS
+  NOT_NOW
+  FORWARDED_TO_COLLEAGUE
+  NEEDS_FOLLOW_UP
+  OUT_OF_OFFICE
+  BOUNCE
+  UNSUBSCRIBE
+  UNKNOWN
+}
+
+enum CampaignInvestorStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REPLIED
+  BOUNCED
+  OPTED_OUT
+  SKIPPED
+  ERROR
+}
+
+model Workspace {
+  id                 String             @id @default(cuid())
+  supabaseUserId     String             @unique @map("clerkUserId")
+  name               String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  settings           WorkspaceSettings?
+  companyProfile     CompanyProfile?
+  mailboxConnections MailboxConnection[]
+  investors          Investor[]
+  tags               Tag[]
+  tasks              Task[]
+  campaigns          Campaign[]
+  emailMessages      EmailMessage[]
+  emailTemplates     EmailTemplate[]
+  auditLogs          AuditLog[]
+}
+
+model WorkspaceSettings {
+  id                 String    @id @default(cuid())
+  workspaceId        String    @unique
+  dailySendLimit     Int       @default(20)
+  sendWindowStart    String    @default("09:00")
+  sendWindowEnd      String    @default("17:00")
+  sendOnWeekends     Boolean   @default(false)
+  aiEnabled          Boolean   @default(false)
+  llmProvider        String?
+  llmApiKey          String?   @db.Text
+  llmApiKeys         Json?
+  llmModel           String?
+  dailySummaryEnabled Boolean  @default(true)
+  dailySummaryTime   String?
+  complianceFooter   String?
+  outreachType       String    @default("VC_INVESTOR")
+  customSystemPrompt String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model CompanyProfile {
+  id                 String    @id @default(cuid())
+  workspaceId        String    @unique
+  companyName        String
+  url                String?
+  oneLinePitch       String?
+  industry           String?
+  stage              String?
+  amountRaising      String?
+  valuationTarget    String?
+  location           String?
+  traction           String?   @db.Text
+  founderBio         String?   @db.Text
+  calendarLink       String?
+  emailSignature     String?   @db.Text
+  keyLinks           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pitchDeck          PitchDeck?
+  fundraisingBrief   FundraisingBrief?
+}
+
+model PitchDeck {
+  id                 String         @id @default(cuid())
+  companyProfileId   String         @unique
+  fileName           String
+  fileUrl            String
+  fileSize           Int
+  mimeType           String
+  extractedText      String?        @db.Text
+  extractedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  companyProfile     CompanyProfile @relation(fields: [companyProfileId], references: [id], onDelete: Cascade)
+}
+
+model FundraisingBrief {
+  id                 String         @id @default(cuid())
+  companyProfileId   String         @unique
+  problem            String?        @db.Text
+  solution           String?        @db.Text
+  market             String?        @db.Text
+  traction           String?        @db.Text
+  team               String?        @db.Text
+  roundDetails       String?        @db.Text
+  keyProofPoints     Json?
+  missingInfo        Json?
+  isConfirmed        Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  companyProfile     CompanyProfile @relation(fields: [companyProfileId], references: [id], onDelete: Cascade)
+}
+
+model MailboxConnection {
+  id                 String         @id @default(cuid())
+  workspaceId        String
+  provider           String
+  email              String
+  displayName        String?
+  accessToken        String?        @db.Text
+  refreshToken       String?        @db.Text
+  tokenExpiresAt     DateTime?
+  scopes             String[]
+
+  // SMTP/IMAP specific fields
+  smtpHost           String?
+  smtpPort           Int?
+  smtpUsername       String?
+  smtpPassword       String?        @db.Text
+  imapHost           String?
+  imapPort           Int?
+  imapUsername       String?
+  imapPassword       String?        @db.Text
+  historyId          String?
+  isActive           Boolean        @default(true)
+  lastSyncAt         DateTime?
+  syncError          String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  workspace          Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns          Campaign[]
+  emailMessages      EmailMessage[]
+
+  @@unique([workspaceId, email])
+}
+
+model Investor {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  name               String
+  firm               String?
+  email              String?
+  partnerTitle       String?
+  website            String?
+  linkedinUrl        String?
+  location           String?
+  timezone           String?
+  sectorThesis       String?            @db.Text
+  stagePreference    String?
+  typicalCheckSize   String?
+  portfolioCompanies String?            @db.Text
+  relationshipStatus String?
+  warmIntroSource    String?
+  notes              String?            @db.Text
+  recentMilestone    String?            @db.Text
+  personalConnection String?            @db.Text
+  customIcebreaker   String?            @db.Text
+  pipelineStatus     PipelineStatus     @default(DRAFT)
+  emailValid         Boolean            @default(true)
+  emailValidationNote String?
+  isBounced          Boolean            @default(false)
+  isOptedOut         Boolean            @default(false)
+  hasWarmIntro       Boolean            @default(false)
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tags               InvestorTag[]
+  timelineEvents     TimelineEvent[]
+  tasks              Task[]
+  campaignInvestors  CampaignInvestor[]
+  emailMessages      EmailMessage[]
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId, pipelineStatus])
+  @@index([workspaceId, deletedAt])
+}
+
+model Tag {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  name               String
+  color              String             @default("#6366f1")
+  createdAt          DateTime           @default(now())
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  investors          InvestorTag[]
+
+  @@unique([workspaceId, name])
+}
+
+model InvestorTag {
+  id                 String             @id @default(cuid())
+  investorId         String
+  tagId              String
+
+  investor           Investor           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  tag                Tag                @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([investorId, tagId])
+}
+
+model TimelineEvent {
+  id                 String             @id @default(cuid())
+  investorId         String
+  type               String
+  title              String
+  description        String?            @db.Text
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+
+  investor           Investor           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  investorId         String?
+  title              String
+  description        String?            @db.Text
+  type               String
+  priority           String             @default("medium")
+  status             String             @default("pending")
+  dueAt              DateTime?
+  completedAt        DateTime?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  investor           Investor?          @relation(fields: [investorId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+model Campaign {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  name               String
+  description        String?            @db.Text
+  mode               CampaignMode       @default(REVIEW_BEFORE_SEND)
+  status             CampaignStatus     @default(DRAFT)
+  mailboxId          String?
+  filterTags         String[]
+  filterStages       String[]
+  filterGeography    String[]
+  filterThesis       String[]
+  filterFirms        String[]
+  filterRelationship String[]
+  excludeInvestorIds String[]
+  dailySendLimit     Int?
+  sendWindowStart    String?
+  sendWindowEnd      String?
+  confirmedAt        DateTime?
+  deletedAt          DateTime?
+  openCount          Int                @default(0)
+  clickCount         Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  mailbox            MailboxConnection? @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  sequenceSteps      SequenceStep[]
+  campaignInvestors  CampaignInvestor[]
+
+  @@index([workspaceId, status])
+}
+
+model SequenceStep {
+  id                 String             @id @default(cuid())
+  campaignId         String
+  order              Int
+  name               String
+  templateId         String?
+  delayDays          Int                @default(0)
+  requiresApproval   Boolean            @default(false)
+  subjectTemplate    String?            @db.Text
+  bodyTemplate       String             @db.Text
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  campaign           Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  emailMessages      EmailMessage[]
+
+  @@unique([campaignId, order])
+}
+
+model CampaignInvestor {
+  id                 String                 @id @default(cuid())
+  campaignId         String
+  investorId         String
+  status             CampaignInvestorStatus @default(PENDING)
+  currentStepOrder   Int                    @default(0)
+  nextSendAt         DateTime?
+  skipReason         String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  campaign           Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  investor           Investor               @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  emailMessages      EmailMessage[]
+
+  @@unique([campaignId, investorId])
+  @@index([status, nextSendAt])
+}
+
+model EmailMessage {
+  id                       String               @id @default(cuid())
+  workspaceId              String
+  direction                EmailDirection
+  status                   EmailStatus          @default(DRAFT)
+  investorId               String?
+  campaignInvestorId       String?
+  sequenceStepId           String?
+  mailboxId                String?
+  fromEmail                String
+  toEmail                  String
+  subject                  String
+  body                     String               @db.Text
+  attachments              String[]             @default([])
+  previewText              String?
+  variablesUsed            Json?
+  personalizationNotes     String?              @db.Text
+  gmailMessageId           String?              @unique
+  gmailThreadId            String?
+  messageIdHeader          String?
+  inReplyToHeader          String?
+  replyClassification      ReplyClassification?
+  classificationConfidence Float?
+  suggestedResponse        String?              @db.Text
+  sentAt                   DateTime?
+  scheduledFor             DateTime?
+  failureReason            String?
+  retryCount               Int                  @default(0)
+  maxRetries               Int                  @default(3)
+  idempotencyKey           String?              @unique
+  openedAt                 DateTime?
+  openCount                Int                  @default(0)
+  clickedAt                DateTime?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+
+  workspace                Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  investor                 Investor?            @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  campaignInvestor         CampaignInvestor?    @relation(fields: [campaignInvestorId], references: [id], onDelete: SetNull)
+  sequenceStep             SequenceStep?        @relation(fields: [sequenceStepId], references: [id], onDelete: SetNull)
+  mailbox                  MailboxConnection?   @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, direction, status])
+  @@index([gmailThreadId])
+  @@index([toEmail])
+  @@index([investorId, direction])
+}
+
+model EmailTemplate {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  name               String
+  type               String
+  subject            String             @db.Text
+  body               String             @db.Text
+  variables          String[]
+  attachments        String[]           @default([])
+  isDefault          Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, type])
+}
+
+model AuditLog {
+  id                 String             @id @default(cuid())
+  workspaceId        String
+  action             String
+  entityType         String
+  entityId           String?
+  details            Json?
+  performedBy        String?
+  reason             String?            @db.Text
+  createdAt          DateTime           @default(now())
+
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([entityType, entityId])
+}
