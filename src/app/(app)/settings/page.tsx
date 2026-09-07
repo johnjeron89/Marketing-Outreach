@@ -37,8 +37,8 @@ export default function SettingsPage() {
       setIsConnecting(true);
       const url = await getGoogleAuthUrl("settings");
       window.location.href = url;
-    } catch (error) {
-      toast.error("Failed to generate connect URL");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate connect URL");
       setIsConnecting(false);
     }
   };

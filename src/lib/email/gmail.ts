@@ -10,15 +10,30 @@ export class GmailProvider implements EmailProvider {
   private clientSecret: string;
   
   constructor() {
-    this.clientId = process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID || '';
-    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET || '';
+    this.clientId = (process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID || '').trim();
+    this.clientSecret = (process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET || '').trim();
   }
 
   private createOAuthClient(redirectUri: string = ''): OAuth2Client {
+    if (!this.clientId) {
+      console.error(
+        '[Google OAuth Error] Missing GOOGLE_CLIENT_ID environment variable. ' +
+        'Authentication cannot proceed without a valid OAuth Client ID.'
+      );
+      throw new Error(
+        'Missing GOOGLE_CLIENT_ID environment variable. ' +
+        'Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local (or your Vercel settings). ' +
+        'If testing locally without Google Cloud credentials, set GMAIL_MOCK_MODE=true.'
+      );
+    }
     return new google.auth.OAuth2(this.clientId, this.clientSecret, redirectUri);
   }
 
   getAuthUrl(redirectUri: string, state: string): string {
+    if (process.env.GMAIL_MOCK_MODE === 'true') {
+      return `/api/auth/callback/google?code=mock_code&state=${encodeURIComponent(state)}`;
+    }
+
     const oauth2Client = this.createOAuthClient(redirectUri);
     return oauth2Client.generateAuthUrl({
       access_type: 'offline',

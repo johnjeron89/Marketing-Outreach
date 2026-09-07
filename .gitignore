@@ -38,3 +38,6 @@ prisma/*.db-journal
 
 # Trigger.dev
 .trigger
+
+.vercel
+.env*

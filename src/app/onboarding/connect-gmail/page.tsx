@@ -36,8 +36,8 @@ export default function ConnectGmailPage() {
       setIsConnecting(true);
       const url = await getGoogleAuthUrl("onboarding");
       window.location.href = url;
-    } catch (error) {
-      toast.error("Failed to generate connect URL");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate connect URL");
       setIsConnecting(false);
     }
   };

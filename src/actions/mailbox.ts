@@ -41,6 +41,19 @@ export async function getMailboxes() {
 export async function getGoogleAuthUrl(state: string = "settings") {
   const origin = (await headers()).get("origin") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const redirectUri = `${origin}/api/auth/callback/google`;
+
+  if (process.env.GMAIL_MOCK_MODE === "true") {
+    return `/api/auth/callback/google?code=mock_code&state=${encodeURIComponent(state)}`;
+  }
+
+  const clientId = (process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID || '').trim();
+  if (!clientId) {
+    throw new Error(
+      "Missing GOOGLE_CLIENT_ID in environment variables. " +
+      "Please configure your Google OAuth credentials in .env.local or Vercel, or set GMAIL_MOCK_MODE=true for testing."
+    );
+  }
+
   return gmailProvider.getAuthUrl(redirectUri, state);
 }
 
