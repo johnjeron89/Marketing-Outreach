@@ -10,6 +10,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { PIPELINE_STATUS_CONFIG } from '@/types';
 import { AnalyticsCharts } from '@/components/dashboard/analytics-charts';
 
+export const dynamic = 'force-dynamic';
+
 // Utility for animating children with staggered delays
 const staggerClass = (index: number) => `animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-500 delay-[${index * 100}ms]`;
 
@@ -264,6 +266,13 @@ export default async function DashboardPage() {
       </div>
     );
   } catch (error: any) {
+    if (
+      error?.digest === 'DYNAMIC_SERVER_USAGE' ||
+      error?.digest?.startsWith('NEXT_') ||
+      error?.message?.includes('Dynamic server usage')
+    ) {
+      throw error;
+    }
     console.error("Dashboard error:", error);
     // Fallback/Setup State
     return (
