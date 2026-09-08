@@ -78,11 +78,11 @@ export function SmtpConnectDialog({ onConnect }: { onConnect: () => void }) {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" name="email" type="email" placeholder="sahil@nexaworks.tech" required value={formData.email} onChange={handleChange} />
+              <Input id="email" name="email" type="email" placeholder="you@company.com" required value={formData.email} onChange={handleChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="displayName">Display Name</Label>
-              <Input id="displayName" name="displayName" placeholder="Sahil Ghewari" required value={formData.displayName} onChange={handleChange} />
+              <Input id="displayName" name="displayName" placeholder="Your Name" required value={formData.displayName} onChange={handleChange} />
             </div>
             
             <div className="grid grid-cols-2 gap-4">

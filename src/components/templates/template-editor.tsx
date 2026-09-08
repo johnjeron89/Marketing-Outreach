@@ -34,7 +34,7 @@ const MOCK_DATA = {
   companyName: "Acme Inc",
   oneLinePitch: "an AI-powered CRM for fundraising",
   recentInvestment: "Stripe",
-  senderName: "Sahil"
+  senderName: "Your Name"
 };
 
 export function TemplateEditor({

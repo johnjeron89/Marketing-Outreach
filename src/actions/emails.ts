@@ -438,7 +438,7 @@ export async function sendManualEmail(investorId: string, subject: string, body:
 
   let signature = companyProfile?.emailSignature;
   if (!signature) {
-    signature = "Best,\nSahil Ghewari\nCEO, TESSILO\nsahilghewari00@gmail.com\n+91 8356954152";
+    signature = "Best regards";
   }
 
   if (!body.trim().toLowerCase().includes('best,') && !body.trim().toLowerCase().includes('regards,') && !body.trim().toLowerCase().includes('cheers,')) {
